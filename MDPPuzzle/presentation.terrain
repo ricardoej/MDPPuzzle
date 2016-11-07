@@ -1,0 +1,21 @@
+﻿# Colunas X linhas
+4 3
+
+# Reward padrão
+-3
+
+# Probabilidade das ações (go ahead go right go back go left)
+0,8 0,1 0,0 0,1
+
+# Fator gama (Valor entre 0 e 1)
+1
+
+# Definição das células (coluna linha reward value type)
+# types:
+#	FOREST: Célula com custo maior
+#	MOUNTAIN: Célula não atingível
+#	GOAL: Objetivo
+#	PATH: Caminho comum
+3 0 0 100 GOAL
+3 1 0 -100 CAMP
+1 1 0 0 MOUNTAIN
