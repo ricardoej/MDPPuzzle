@@ -4,11 +4,14 @@
 # Reward padrão
 -3
 
-# Probabilidade das ações (go ahead go right go back go left)
-0,8 0,1 0,0 0,1
+# Probabilidade das ações (go-ahead go-right go-back go-left)
+0.8 0.1 0.0 0.1
+
+# Probabilidade das observações (is-at-goal is-at-camp is-in-forest is-in-path)
+0.6 0.6 0.6 0.6
 
 # Fator gama (Valor entre 0 e 1)
-1
+0.95
 
 # Definição das células (coluna linha reward value type)
 # types:

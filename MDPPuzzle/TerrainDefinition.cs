@@ -1,4 +1,5 @@
-﻿using System;
+﻿using System.IO;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -336,9 +337,45 @@ namespace MDPPuzzle
             return observations;
         }
 
-        private void SetObservationProbability(double[, ,] observations, int a, int o, int s, double prob)
+        private void SetObservationProbability(double[, ,] observations, int o, int a, int s, double prob)
+        {            
+            observations[o, a, s] += prob;
+            double adj_prob = prob / Enum.GetNames(typeof(Adjacents)).Length;
+            foreach (Adjacents adj in Enum.GetValues(typeof(Adjacents)))
+            {
+                observations[o, a, this.GetAdjacentState(s, adj)] += adj_prob;
+            }
+        }
+
+        private int GetAdjacentState(int s, Adjacents adj)
         {
-            //var coord = ConvertPositionToCoordinate(s);
+            int sa = -1;
+            var coord = this.ConvertPositionToCoordinate(s);
+            switch (adj)
+            {
+                case Adjacents.NORTH:
+                    coord.Y -= 1;
+                    break;
+                case Adjacents.SOUTH:
+                    coord.Y += 1;
+                    break;
+                case Adjacents.EAST:
+                    coord.X += 1;
+                    break;
+                case Adjacents.WEST:
+                    coord.X -= 1;
+                    break;
+            }
+            var statesNumber = this.Columns * this.Rows;
+            if (coord.X >= 0 && coord.X < this.Columns && coord.Y >= 0 && coord.Y < this.Rows)
+            {
+                sa = this.ConvertCoordinateToPosition((int) coord.X, (int) coord.Y);
+            }
+            if (sa < 0 || sa >= statesNumber || this.IsObstacle(sa))
+            {
+                return s;
+            }
+            return sa;
         }
 
         public double[] GetValues()
@@ -352,6 +389,158 @@ namespace MDPPuzzle
             }
 
             return values;
+        }
+
+        public static void ExportTerrainDefinition(TerrainDefinition terrain, string fileName)
+        {
+            string output = "";
+            /*** POMDP Model Sets ***/
+            output += "#######################################\n";
+            output += "### This file was auto-generated!!! ###\n";
+            output += "#######################################\n";
+            output += "\ndiscount: " + terrain.Gama;
+            output += "\nvalues: reward";
+            output += "\nstates:";
+            Dictionary<int, string> states = new Dictionary<int, string>();
+            for (int i = 0; i < terrain.Rows; i++)
+            {
+                for (int j = 0; j < terrain.Columns; j++)
+                {
+                    if (!terrain.IsObstacle(j, i))
+                    {
+                        string str = "r" + i + "-c" + j;
+                        states.Add(j + terrain.Columns * i, str);
+                        output += " " + str;
+                    }
+                }
+            } 
+            Dictionary<Actions, string> actions = new Dictionary<Actions, string>();
+            actions.Add(Actions.NORTH, "go-north");
+            actions.Add(Actions.SOUTH, "go-south");
+            actions.Add(Actions.EAST, "go-east");
+            actions.Add(Actions.WEST, "go-west");
+            output += "\nactions:";
+            foreach (var a in actions.Keys)
+            {
+                output += " " + actions[a];
+            }
+            Dictionary<Observations, string> observations = new Dictionary<Observations, string>();
+            observations.Add(Observations.GOAL, "is-at-goal");
+            observations.Add(Observations.CAMP, "is-at-camp");
+            observations.Add(Observations.PATH, "is-in-forest");
+            observations.Add(Observations.PATH, "is-in-path");
+            output += "\nobservations:";
+            foreach (var o in observations.Keys)
+            {
+                output += " " + observations[o];
+            }
+            output += "\n\nstart: uniform";
+
+            /*** POMDP Model Functions ***/
+            double[, ,] T = terrain.GetTransitions();
+            foreach (var a in actions.Keys)
+            {
+                output += "\n\nT: " + actions[a];
+                foreach (var s in states.Keys)
+                {
+                    output += "\n";
+                    foreach (var sp in states.Keys) // sp = s' (s prime)
+                    {
+                        output += " " + T[s, (int) a, sp];
+                    }
+                }
+            }
+            output += "\n\nO: *";
+            double[, ,] O = terrain.GetObservations();
+            foreach (var a in actions.Keys)
+            {
+                output += "\n\nO: " + actions[a];
+                foreach (var s in states.Keys)
+                {
+                    output += "\n";
+                    foreach (var o in observations.Keys)
+                    {
+                        output += " " + O[(int) o, (int) a, s];
+                    }
+                }
+            }
+            double[,] R = terrain.GetRewards();
+            double[] V = terrain.GetValues();
+            foreach (var a in actions.Keys)
+            {
+                output += "\n\nR: " + actions[a] + " : *";
+                foreach (var s in states.Keys)
+                {
+                    output += "\n";
+                    foreach (var o in observations.Keys)
+                    {
+                        output += " " + (V[s] == 0 ? R[s, (int) a] : V[s]);
+                    }
+                }
+            }
+            using (StreamWriter sw = new StreamWriter(fileName + ".POMDP"))
+            {
+                sw.Write(output);
+            }
+        }
+        
+        public static TerrainDefinition LoadTerrainDefinition(string fileName)
+        {
+            var terrainDefinition = new TerrainDefinition();
+
+            using (StreamReader sr = new StreamReader(fileName))
+            {
+                int validLine = 0;
+                while (!sr.EndOfStream)
+                {
+                    String line = sr.ReadLine();
+                    if (!string.IsNullOrEmpty(line) && !line.StartsWith("#"))
+                    {
+                        validLine += 1;
+                        if (validLine == 1)
+                        {
+                            string[] lineSplitted = line.Split(' ');
+                            terrainDefinition.Columns = int.Parse(lineSplitted[0]);
+                            terrainDefinition.Rows = int.Parse(lineSplitted[1]);
+                        }
+                        else if (validLine == 2)
+                        {
+                            terrainDefinition.DefaultReward = double.Parse(line);
+                        }
+                        else if (validLine == 3)
+                        {
+                            string[] lineSplitted = line.Split(' ');
+                            terrainDefinition.GoingAheadProbability = double.Parse(lineSplitted[0]);
+                            terrainDefinition.GoingRightProbability = double.Parse(lineSplitted[1]);
+                            terrainDefinition.GoingBackProbability = double.Parse(lineSplitted[2]);
+                            terrainDefinition.GoingLeftProbability = double.Parse(lineSplitted[3]);
+                        }
+                        else if (validLine == 4)
+                        {
+                            string[] lineSplitted = line.Split(' ');
+                            terrainDefinition.IsAtGoalProbability = double.Parse(lineSplitted[0]);
+                            terrainDefinition.IsAtCampProbability = double.Parse(lineSplitted[1]);
+                            terrainDefinition.IsInForestProbability = double.Parse(lineSplitted[2]);
+                            terrainDefinition.IsInPathProbability = double.Parse(lineSplitted[3]);
+                        }
+                        else if (validLine == 5)
+                        {
+                            terrainDefinition.Gama = double.Parse(line);
+                        }
+                        else
+                        {
+                            string[] lineSplitted = line.Split(' ');
+                            terrainDefinition.SetCellAttributes(int.Parse(lineSplitted[0]), 
+                                int.Parse(lineSplitted[1]), 
+                                double.Parse(lineSplitted[2]),
+                                double.Parse(lineSplitted[3]),
+                                (CellType)Enum.Parse(typeof(CellType), lineSplitted[4]));
+                        }
+                    }
+                }
+            }
+
+            return terrainDefinition;
         }
     }
 }
