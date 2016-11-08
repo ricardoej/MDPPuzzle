@@ -17,6 +17,18 @@ using System.Windows.Shapes;
 
 namespace MDPPuzzle
 {
+    public class PathItem
+    {
+        public int State { get; set; }
+        public Actions Action { get; set; }
+
+        public PathItem(int state, Actions action)
+        {
+            State = state;
+            Action = action;
+        }
+    }
+
     /// <summary>
     /// Interaction logic for Terrain.xaml
     /// </summary>
@@ -25,7 +37,7 @@ namespace MDPPuzzle
         private Dictionary<int, TerrainCell> terrainCells = new Dictionary<int, TerrainCell>();
         private const int ANIMATION_TIME_IN_SEC = 1;
         private bool runningPath = false;
-        private List<int> path = new List<int>();
+        private List<PathItem> path = new List<PathItem>();
         private int currentPathIndex = -1;
 
         public TerrainDefinition CurrentTerrain { get; set; }
@@ -169,7 +181,7 @@ namespace MDPPuzzle
 
         public void ExecutePolicy(int[][] CurrentPolicy)
         {
-            path = GetPolicyPath(CurrentPolicy);
+            path = GetPolicyActions(CurrentPolicy);
 
             if (path.Count > 0)
             {
@@ -180,7 +192,7 @@ namespace MDPPuzzle
 
         private void ExecuteNextStateFromPath()
         {
-            var cell = CurrentTerrain.ConvertPositionToCoordinate(path[currentPathIndex + 1]);
+            var cell = CurrentTerrain.ConvertPositionToCoordinate(path[currentPathIndex + 1].State);
             MoveRobotTo((int)cell.X, (int)cell.Y,
                 delegate
                 {
@@ -208,9 +220,9 @@ namespace MDPPuzzle
             );
         }
 
-        private List<int> GetPolicyPath(int[][] CurrentPolicy)
+        private List<PathItem> GetPolicyActions(int[][] CurrentPolicy)
         {
-            List<int> path = new List<int>();
+            List<PathItem> path = new List<PathItem>();
             int lastPosition = CurrentTerrain.ConvertCoordinateToPosition((int)CurrentRobotPosition.X, (int)CurrentRobotPosition.Y);
             Random rand = new Random();
             bool end = false;
@@ -249,7 +261,7 @@ namespace MDPPuzzle
                             probSum += transitions[lastPosition, action, state];
                             if (randValue <= probSum)
                             {
-                                path.Add(state);
+                                path.Add(new PathItem(state, (Actions)action));
                                 lastPosition = state;
                                 break;
                             }

@@ -54,8 +54,11 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="Actions.cs" />
+    <Compile Include="Adjacents.cs" />
     <Compile Include="Cell.cs" />
     <Compile Include="CellType.cs" />
+    <Compile Include="Observations.cs" />
+    <Compile Include="POMDPPolicyItem.cs" />
     <Compile Include="TerrainDefinition.cs" />
     <Compile Include="Terrain.xaml.cs">
       <DependentUpon>Terrain.xaml</DependentUpon>

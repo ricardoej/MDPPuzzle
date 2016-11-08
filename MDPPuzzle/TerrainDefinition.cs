@@ -391,25 +391,25 @@ namespace MDPPuzzle
             return values;
         }
 
-        public static void ExportTerrainDefinition(TerrainDefinition terrain, string fileName)
+        public void ExportTerrainDefinition(string fileName)
         {
             string output = "";
             /*** POMDP Model Sets ***/
             output += "#######################################\n";
             output += "### This file was auto-generated!!! ###\n";
             output += "#######################################\n";
-            output += "\ndiscount: " + terrain.Gama;
+            output += "\ndiscount: " + Gama;
             output += "\nvalues: reward";
             output += "\nstates:";
             Dictionary<int, string> states = new Dictionary<int, string>();
-            for (int i = 0; i < terrain.Rows; i++)
+            for (int i = 0; i < Rows; i++)
             {
-                for (int j = 0; j < terrain.Columns; j++)
+                for (int j = 0; j < Columns; j++)
                 {
-                    if (!terrain.IsObstacle(j, i))
+                    if (!IsObstacle(j, i))
                     {
                         string str = "r" + i + "-c" + j;
-                        states.Add(j + terrain.Columns * i, str);
+                        states.Add(j + Columns * i, str);
                         output += " " + str;
                     }
                 }
@@ -427,7 +427,7 @@ namespace MDPPuzzle
             Dictionary<Observations, string> observations = new Dictionary<Observations, string>();
             observations.Add(Observations.GOAL, "is-at-goal");
             observations.Add(Observations.CAMP, "is-at-camp");
-            observations.Add(Observations.PATH, "is-in-forest");
+            observations.Add(Observations.FOREST, "is-in-forest");
             observations.Add(Observations.PATH, "is-in-path");
             output += "\nobservations:";
             foreach (var o in observations.Keys)
@@ -437,7 +437,7 @@ namespace MDPPuzzle
             output += "\n\nstart: uniform";
 
             /*** POMDP Model Functions ***/
-            double[, ,] T = terrain.GetTransitions();
+            double[, ,] T = GetTransitions();
             foreach (var a in actions.Keys)
             {
                 output += "\n\nT: " + actions[a];
@@ -451,7 +451,7 @@ namespace MDPPuzzle
                 }
             }
             output += "\n\nO: *";
-            double[, ,] O = terrain.GetObservations();
+            double[, ,] O = GetObservations();
             foreach (var a in actions.Keys)
             {
                 output += "\n\nO: " + actions[a];
@@ -464,8 +464,8 @@ namespace MDPPuzzle
                     }
                 }
             }
-            double[,] R = terrain.GetRewards();
-            double[] V = terrain.GetValues();
+            double[,] R = GetRewards();
+            double[] V = GetValues();
             foreach (var a in actions.Keys)
             {
                 output += "\n\nR: " + actions[a] + " : *";
@@ -482,65 +482,6 @@ namespace MDPPuzzle
             {
                 sw.Write(output);
             }
-        }
-        
-        public static TerrainDefinition LoadTerrainDefinition(string fileName)
-        {
-            var terrainDefinition = new TerrainDefinition();
-
-            using (StreamReader sr = new StreamReader(fileName))
-            {
-                int validLine = 0;
-                while (!sr.EndOfStream)
-                {
-                    String line = sr.ReadLine();
-                    if (!string.IsNullOrEmpty(line) && !line.StartsWith("#"))
-                    {
-                        validLine += 1;
-                        if (validLine == 1)
-                        {
-                            string[] lineSplitted = line.Split(' ');
-                            terrainDefinition.Columns = int.Parse(lineSplitted[0]);
-                            terrainDefinition.Rows = int.Parse(lineSplitted[1]);
-                        }
-                        else if (validLine == 2)
-                        {
-                            terrainDefinition.DefaultReward = double.Parse(line);
-                        }
-                        else if (validLine == 3)
-                        {
-                            string[] lineSplitted = line.Split(' ');
-                            terrainDefinition.GoingAheadProbability = double.Parse(lineSplitted[0]);
-                            terrainDefinition.GoingRightProbability = double.Parse(lineSplitted[1]);
-                            terrainDefinition.GoingBackProbability = double.Parse(lineSplitted[2]);
-                            terrainDefinition.GoingLeftProbability = double.Parse(lineSplitted[3]);
-                        }
-                        else if (validLine == 4)
-                        {
-                            string[] lineSplitted = line.Split(' ');
-                            terrainDefinition.IsAtGoalProbability = double.Parse(lineSplitted[0]);
-                            terrainDefinition.IsAtCampProbability = double.Parse(lineSplitted[1]);
-                            terrainDefinition.IsInForestProbability = double.Parse(lineSplitted[2]);
-                            terrainDefinition.IsInPathProbability = double.Parse(lineSplitted[3]);
-                        }
-                        else if (validLine == 5)
-                        {
-                            terrainDefinition.Gama = double.Parse(line);
-                        }
-                        else
-                        {
-                            string[] lineSplitted = line.Split(' ');
-                            terrainDefinition.SetCellAttributes(int.Parse(lineSplitted[0]), 
-                                int.Parse(lineSplitted[1]), 
-                                double.Parse(lineSplitted[2]),
-                                double.Parse(lineSplitted[3]),
-                                (CellType)Enum.Parse(typeof(CellType), lineSplitted[4]));
-                        }
-                    }
-                }
-            }
-
-            return terrainDefinition;
         }
     }
 }

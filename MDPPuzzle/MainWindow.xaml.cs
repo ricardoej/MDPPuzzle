@@ -89,13 +89,21 @@ namespace MDPPuzzle
                         }
                         else if (validLine == 4)
                         {
+                            string[] lineSplitted = line.Split(' ');
+                            terrainDefinition.IsAtGoalProbability = double.Parse(lineSplitted[0]);
+                            terrainDefinition.IsAtCampProbability = double.Parse(lineSplitted[1]);
+                            terrainDefinition.IsInForestProbability = double.Parse(lineSplitted[2]);
+                            terrainDefinition.IsInPathProbability = double.Parse(lineSplitted[3]);
+                        }
+                        else if (validLine == 5)
+                        {
                             terrainDefinition.Gama = double.Parse(line);
                         }
                         else
                         {
                             string[] lineSplitted = line.Split(' ');
-                            terrainDefinition.SetCellAttributes(int.Parse(lineSplitted[0]), 
-                                int.Parse(lineSplitted[1]), 
+                            terrainDefinition.SetCellAttributes(int.Parse(lineSplitted[0]),
+                                int.Parse(lineSplitted[1]),
                                 double.Parse(lineSplitted[2]),
                                 double.Parse(lineSplitted[3]),
                                 (CellType)Enum.Parse(typeof(CellType), lineSplitted[4]));
@@ -163,6 +171,101 @@ namespace MDPPuzzle
                 terrain.ExecutePolicy(CurrentPolicy);
             else
                 MessageBox.Show("Não existe nenhuma política calculada");
+        }
+
+        private void POMDPLoadPolicyMenuItemClick(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Multiselect = true;
+            if (openFileDialog.ShowDialog() == true)
+            {
+                if (openFileDialog.FileNames.Length == 2 
+                    && openFileDialog.FileNames.Where(c => c.EndsWith(".pg")).Count() == 1
+                    && openFileDialog.FileNames.Where(c => c.EndsWith(".alpha")).Count() == 1)
+                {
+                    foreach (var file in openFileDialog.FileNames)
+                    {
+                        if (file.EndsWith(".pg"))
+                        {
+                            LoadPGFile(file);
+                        }
+                        else if (file.EndsWith(".alpha"))
+                        {
+                            LoadAlphaFile(file);
+                        }
+                    } 
+                }
+                else
+                {
+                    MessageBox.Show("Apenas dois arquivos (.pg e .alpha) devem ser selecionados");
+                }
+            }
+        }
+
+        private void POMDPExportModelMenuItemClick(object sender, RoutedEventArgs e)
+        {
+            Cfg.ExportTerrainDefinition("teste.terrain");
+        }
+
+        Dictionary<int, POMDPPolicyItem> pomdpPolicy = new Dictionary<int, POMDPPolicyItem>();
+
+        private void LoadAlphaFile(string fileName)
+        {
+            using (StreamReader sr = new StreamReader(fileName))
+            {
+                int node = 0;
+                while (!sr.EndOfStream)
+                {
+                    string line = sr.ReadLine();
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        if (!pomdpPolicy.ContainsKey(node))
+                            pomdpPolicy.Add(node, new POMDPPolicyItem((Actions)int.Parse(line)));
+
+                        int state = 0;
+                        string values = sr.ReadLine();
+                        foreach (var value in values.Split(' '))
+                        {
+                            if (!string.IsNullOrWhiteSpace(value))
+                            {
+                                pomdpPolicy[node].AddStateValue(state, double.Parse(value));
+                                state++; 
+                            }
+                        }
+
+                        node++;
+                    }
+                }
+            }
+        }
+
+        private void LoadPGFile(string fileName)
+        {
+            using (StreamReader sr = new StreamReader(fileName))
+            {
+                while (!sr.EndOfStream)
+                {
+                    string line = sr.ReadLine();
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        var blocks = line.Split(' ');
+                        
+                        int node = int.Parse(blocks[0]);
+                        if (!pomdpPolicy.ContainsKey(node))
+                            pomdpPolicy.Add(node, new POMDPPolicyItem((Actions)int.Parse(blocks[1])));
+
+                        int observation = 0;
+                        for (int i = 2; i < blocks.Length; i++)
+                        {
+                            if (!string.IsNullOrWhiteSpace(blocks[i]))
+                            {
+                                pomdpPolicy[node].AddObservationToNode((Observations)observation, int.Parse(blocks[i]));
+                                observation++;
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

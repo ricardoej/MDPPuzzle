@@ -26,6 +26,12 @@
                 <MenuItem Header="Executar"
                           Click="RunMenuItemClick" />
             </MenuItem>
+            <MenuItem Header="POMDP">
+                <MenuItem Header="Exportar modelo"
+                          Click="POMDPExportModelMenuItemClick" />
+                <MenuItem Header="Carregar política"
+                          Click="POMDPLoadPolicyMenuItemClick" />
+            </MenuItem>
         </Menu>
         <local:Terrain x:Name="terrain"
                        Grid.Row="1" />
