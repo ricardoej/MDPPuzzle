@@ -24,6 +24,14 @@ namespace MDPPuzzle
 
         public double GoingRightProbability { get; set; }
 
+        public double IsAtGoalProbability { get; set; }
+
+        public double IsAtCampProbability { get; set; }
+
+        public double IsInForestProbability { get; set; }
+
+        public double IsInPathProbability { get; set; }
+
         public double Gama { get; set; }
 
         public int ActionsNumber
@@ -31,6 +39,14 @@ namespace MDPPuzzle
             get
             {
                 return Enum.GetNames(typeof(Actions)).Length;
+            }
+        }
+
+        public int ObservationsNumber
+        {
+            get
+            {
+                return Enum.GetNames(typeof(Observations)).Length;
             }
         }
 
@@ -129,6 +145,28 @@ namespace MDPPuzzle
             return GetCellType((int)coord.X, (int)coord.Y) == CellType.CAMP;
         }
 
+        public bool IsForest(int col, int row)
+        {
+            return GetCellType(col, row) == CellType.FOREST;
+        }
+
+        public bool IsForest(int pos)
+        {
+            var coord = ConvertPositionToCoordinate(pos);
+            return GetCellType((int)coord.X, (int)coord.Y) == CellType.FOREST;
+        }
+
+        public bool IsPath(int col, int row)
+        {
+            return GetCellType(col, row) == CellType.PATH;
+        }
+
+        public bool IsPath(int pos)
+        {
+            var coord = ConvertPositionToCoordinate(pos);
+            return GetCellType((int)coord.X, (int)coord.Y) == CellType.PATH;
+        }
+
         public double[, ,] GetTransitions()
         {
             var statesNumber = this.Columns * this.Rows;
@@ -201,6 +239,13 @@ namespace MDPPuzzle
                         }
                     }
                 }
+                else if (this.IsGoal(s0) || this.IsCamp(s0))
+                {
+                    transitions[s0, (int)Actions.EAST, s0] = 1;
+                    transitions[s0, (int)Actions.WEST, s0] = 1;
+                    transitions[s0, (int)Actions.NORTH, s0] = 1;
+                    transitions[s0, (int)Actions.SOUTH, s0] = 1;
+                }
             }
 
             return transitions;
@@ -252,6 +297,48 @@ namespace MDPPuzzle
             }
 
             return rewards;
+        }
+
+        public double[, ,] GetObservations()
+        {
+            var observationsNumber = this.ObservationsNumber;
+            var actionsNumber = this.ActionsNumber;
+            var statesNumber = this.Columns * this.Rows;
+            var observations = new double[observationsNumber, actionsNumber, statesNumber];
+
+            for (int a = 0; a < this.ActionsNumber; a++)
+            {
+                for (int s = 0; s < this.ActionsNumber; s++)
+                {
+                    if (this.IsObstacle(s))
+                    {
+                        continue;
+                    }
+                    if (this.IsGoal(s))
+                    {
+                        this.SetObservationProbability(observations, (int) Observations.GOAL, a, s, this.IsAtGoalProbability);
+                    }
+                    else if (this.IsCamp(s))
+                    {
+                        this.SetObservationProbability(observations, (int) Observations.CAMP, a, s, this.IsAtCampProbability);
+                    }
+                    else if (this.IsForest(s))
+                    {
+                        this.SetObservationProbability(observations, (int) Observations.FOREST, a, s, this.IsInForestProbability);
+                    }
+                    else if (this.IsPath(s))
+                    {
+                        this.SetObservationProbability(observations, (int) Observations.PATH, a, s, this.IsInPathProbability);
+                    }
+                }
+            }
+
+            return observations;
+        }
+
+        private void SetObservationProbability(double[, ,] observations, int a, int o, int s, double prob)
+        {
+            //var coord = ConvertPositionToCoordinate(s);
         }
 
         public double[] GetValues()
