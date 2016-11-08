@@ -23,6 +23,8 @@
                           IsCheckable="True"
                           Checked="ShowPolicyMenuItemChecked"
                           Unchecked="HidePolicyMenuItemUnchecked" />
+                <MenuItem Header="Executar"
+                          Click="RunMenuItemClick" />
             </MenuItem>
         </Menu>
         <local:Terrain x:Name="terrain"

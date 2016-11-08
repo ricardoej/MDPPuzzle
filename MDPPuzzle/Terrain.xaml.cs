@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -21,8 +22,13 @@ namespace MDPPuzzle
     /// </summary>
     public partial class Terrain : UserControl
     {
-        public TerrainDefinition CurrentTerrain { get; set; }
         private Dictionary<int, TerrainCell> terrainCells = new Dictionary<int, TerrainCell>();
+        private const int ANIMATION_TIME_IN_SEC = 1;
+        private bool runningPath = false;
+        private List<int> path = new List<int>();
+        private int currentPathIndex = -1;
+
+        public TerrainDefinition CurrentTerrain { get; set; }
 
         public Terrain()
         {
@@ -90,6 +96,8 @@ namespace MDPPuzzle
             TranslateTransform trans = new TranslateTransform();
             robot.RenderTransform = trans;
             this.robot.Visibility = System.Windows.Visibility.Visible;
+
+            MoveRobotTo(0, 0);
         }
 
         private void Clear()
@@ -109,7 +117,7 @@ namespace MDPPuzzle
             terrainCells.Clear();
         }
 
-        public void MoveRobotTo(int col, int row)
+        public void MoveRobotTo(int col, int row, EventHandler completedEvent = null)
         {
             if (CurrentTerrain.GetCellType(col, row) != CellType.MOUNTAIN)
             {
@@ -121,10 +129,16 @@ namespace MDPPuzzle
                 double currentX = transform.X;
                 double currentY = transform.Y;
 
-                DoubleAnimation anim1 = new DoubleAnimation(currentX, cellCenterX, TimeSpan.FromSeconds(1));
-                DoubleAnimation anim2 = new DoubleAnimation(currentY, cellCenterY, TimeSpan.FromSeconds(1));
+                DoubleAnimation anim1 = new DoubleAnimation(currentX, cellCenterX, TimeSpan.FromSeconds(ANIMATION_TIME_IN_SEC));
+                DoubleAnimation anim2 = new DoubleAnimation(currentY, cellCenterY, TimeSpan.FromSeconds(ANIMATION_TIME_IN_SEC));
+
+                if (completedEvent != null)
+                    anim1.Completed += completedEvent;
+
                 transform.BeginAnimation(TranslateTransform.XProperty, anim1);
                 transform.BeginAnimation(TranslateTransform.YProperty, anim2);
+
+                CurrentRobotPosition = new Point(col, row);
             }
         }
 
@@ -152,5 +166,109 @@ namespace MDPPuzzle
                 cell.HideAction();
             }
         }
+
+        public void ExecutePolicy(int[][] CurrentPolicy)
+        {
+            path = GetPolicyPath(CurrentPolicy);
+
+            if (path.Count > 0)
+            {
+                runningPath = true;
+                ExecuteNextStateFromPath();
+            }
+        }
+
+        private void ExecuteNextStateFromPath()
+        {
+            var cell = CurrentTerrain.ConvertPositionToCoordinate(path[currentPathIndex + 1]);
+            MoveRobotTo((int)cell.X, (int)cell.Y,
+                delegate
+                {
+                    currentPathIndex++;
+                    if (path.Count > currentPathIndex + 1)
+                    {
+                        ExecuteNextStateFromPath();
+                    }
+                    else
+                    {
+                        path.Clear();
+                        currentPathIndex = -1;
+                        runningPath = false;
+
+                        if (CurrentTerrain.IsGoal((int)CurrentRobotPosition.X, (int)CurrentRobotPosition.Y))
+                        {
+                            MessageBox.Show("O robô atingiu o objetivo!");
+                        }
+                        else
+                        {
+                            MessageBox.Show("Que pena! Não conseguimos atingir o objetivo!");
+                        }
+                    }
+                }
+            );
+        }
+
+        private List<int> GetPolicyPath(int[][] CurrentPolicy)
+        {
+            List<int> path = new List<int>();
+            int lastPosition = CurrentTerrain.ConvertCoordinateToPosition((int)CurrentRobotPosition.X, (int)CurrentRobotPosition.Y);
+            Random rand = new Random();
+            bool end = false;
+
+            while (!end)
+            {
+                if (CurrentPolicy[lastPosition].Contains(1))
+                {
+                    var action = 0;
+
+                    for (int a = 0; a < CurrentPolicy[lastPosition].Length; a++)
+                    {
+                        if (CurrentPolicy[lastPosition][a] == 1)
+                        {
+                            action = a;
+                            break;
+                        }
+                    }
+
+                    var nextStates = new List<int>();
+                    var transitions = CurrentTerrain.GetTransitions();
+                    for (int i = 0; i < transitions.GetLength(0); i++)
+                    {
+                        if (transitions[lastPosition, action, i] > 0)
+                        {
+                            nextStates.Add(i);
+                        }
+                    }
+
+                    if (nextStates.Count > 0)
+                    {
+                        double randValue = rand.NextDouble();
+                        double probSum = 0;
+                        foreach (var state in nextStates)
+                        {
+                            probSum += transitions[lastPosition, action, state];
+                            if (randValue <= probSum)
+                            {
+                                path.Add(state);
+                                lastPosition = state;
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        end = true;
+                    }
+                }
+                else
+                {
+                    end = true;
+                }
+            }
+
+            return path;
+        }
+
+        public Point CurrentRobotPosition { get; set; }
     }
 }

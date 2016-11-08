@@ -156,5 +156,13 @@ namespace MDPPuzzle
         {
             terrain.HidePolicy();
         }
+
+        private void RunMenuItemClick(object sender, RoutedEventArgs e)
+        {
+            if (CurrentPolicy != null)
+                terrain.ExecutePolicy(CurrentPolicy);
+            else
+                MessageBox.Show("Não existe nenhuma política calculada");
+        }
     }
 }
